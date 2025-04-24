@@ -1,0 +1,93 @@
+{
+  "hash_mappings": {
+    "ae53393f16264e70d966779a302a404e": {
+      "tickers": "AAPL",
+      "start_date": "2024-01-01",
+      "end_date": "2024-12-31",
+      "interval": "1mo",
+      "created_at": "2025-04-06T08:58:24.953355",
+      "original_params": "AAPL_2024-01-01_2024-12-31_1mo"
+    },
+    "9d3390cfa656d0bae502d32ae8614d1f": {
+      "tickers": "AAPL",
+      "start_date": "2024-03-30",
+      "end_date": "2025-03-30",
+      "interval": "1wk",
+      "created_at": "2025-03-30T23:02:33.809594",
+      "original_params": "AAPL_2024-03-30_2025-03-30_1wk"
+    },
+    "958cfd11d7aa0a9b87bd75b5a0dde20e": {
+      "tickers": "AAPL",
+      "start_date": "2024-03-30",
+      "end_date": "2025-03-30",
+      "interval": "1d",
+      "created_at": "2025-03-30T23:02:33.813905",
+      "original_params": "AAPL_2024-03-30_2025-03-30_1d"
+    },
+    "931d5c4c31082d8d5239913c3d67c5b3": {
+      "tickers": "SPY",
+      "start_date": "2024-01-01",
+      "end_date": "2024-12-31",
+      "interval": "1mo",
+      "created_at": "2025-03-30T22:46:40.037528",
+      "original_params": "SPY_2024-01-01_2024-12-31_1mo"
+    },
+    "94e602383dfaf88791ef6cd1275b7609": {
+      "tickers": "SPY",
+      "start_date": "2024-03-30",
+      "end_date": "2025-03-30",
+      "interval": "1wk",
+      "created_at": "2025-03-30T22:46:40.532206",
+      "original_params": "SPY_2024-03-30_2025-03-30_1wk"
+    },
+    "c50957551d44b894632f28e439ab11ee": {
+      "tickers": "SPY",
+      "start_date": "2024-03-30",
+      "end_date": "2025-03-30",
+      "interval": "1d",
+      "created_at": "2025-03-30T22:46:40.652681",
+      "original_params": "SPY_2024-03-30_2025-03-30_1d"
+    },
+    "5a1489e35404be1b7bbc0d6227f27788": {
+      "tickers": "^GSPC",
+      "start_date": "2024-01-01",
+      "end_date": "2024-12-31",
+      "interval": "1mo",
+      "created_at": "2025-03-30T22:58:28.016318",
+      "original_params": "^GSPC_2024-01-01_2024-12-31_1mo"
+    },
+    "0410f0bbb619e7aadfe3e3e44b76e267": {
+      "tickers": "^GSPC",
+      "start_date": "2024-03-30",
+      "end_date": "2025-03-30",
+      "interval": "1wk",
+      "created_at": "2025-03-30T22:58:28.031212",
+      "original_params": "^GSPC_2024-03-30_2025-03-30_1wk"
+    },
+    "b1b1a6a785cad2a4f58ee34528987a9f": {
+      "tickers": "^GSPC",
+      "start_date": "2024-03-30",
+      "end_date": "2025-03-30",
+      "interval": "1d",
+      "created_at": "2025-03-30T22:58:28.033217",
+      "original_params": "^GSPC_2024-03-30_2025-03-30_1d"
+    },
+    "1819d03ad62fbe09cfbd77ef87f0b37e": {
+      "tickers": "AAPL",
+      "start_date": "2024-04-06",
+      "end_date": "2025-04-06",
+      "interval": "1wk",
+      "created_at": "2025-04-06T08:58:25.606158",
+      "original_params": "AAPL_2024-04-06_2025-04-06_1wk"
+    },
+    "47e43e119f80e54f617f491d8faad6a7": {
+      "tickers": "AAPL",
+      "start_date": "2024-04-06",
+      "end_date": "2025-04-06",
+      "interval": "1d",
+      "created_at": "2025-04-06T08:58:25.743275",
+      "original_params": "AAPL_2024-04-06_2025-04-06_1d"
+    }
+  },
+  "last_updated": "2025-04-06T08:58:25.743280"
+}

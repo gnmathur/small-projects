@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "dev.gmathur.gossip.proto";
+option java_outer_classname = "GossipProto";
+
+package gossip;
+
+// User information that will be gossiped across the network
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  map<string, uint64> version_vector = 4; // Node ID -> Version number
+  int64 timestamp = 5; // Creation timestamp
+}
+
+// Gossip message containing multiple user updates
+message GossipMessage {
+  string message_id = 1; // Unique ID to detect duplicates
+  string source_node_id = 2; // Original sender
+  repeated User users = 3; // User information being gossiped
+  int32 hop_count = 4; // Limits propagation
+}
+
+// Sync request for anti-entropy
+message SyncRequest {
+  string node_id = 1;
+  // Digest of the sender's state (user IDs and their version vector)
+  map<string, StateVectorEntry> state_digest = 2;
+}
+
+message StateVectorEntry {
+  map<string, uint64> version_vector = 1;
+}
+
+// Response to a sync request
+message SyncResponse {
+  repeated User missing_users = 1; // Users the requester is missing
+}
+
+// Gossip service for inter-node communication
+service GossipService {
+  // Receive gossip updates from other nodes
+  rpc ReceiveGossip(GossipMessage) returns (Empty);
+
+  // Anti-entropy sync to resolve inconsistencies
+  rpc Sync(SyncRequest) returns (SyncResponse);
+
+  // Join the network by contacting an existing node
+  rpc Join(JoinRequest) returns (JoinResponse);
+}
+
+message JoinRequest {
+  string node_id = 1;
+  string address = 2; // IP:Port
+}
+
+message JoinResponse {
+  repeated NodeInfo known_nodes = 1; // Information about other nodes
+}
+
+message NodeInfo {
+  string node_id = 1;
+  string address = 2; // IP:Port
+}
+
+message Empty {}

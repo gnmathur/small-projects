@@ -1,0 +1,122 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+paths:
+  /analyze/{fileId}:
+    post:
+      tags:
+      - file-analyzer-controller
+      summary: Submit a file identifier for analysis
+      description: 'Submitted UUID will be used a file identifier and the file will
+        be analyzed for file references it might contain (other UUIDs). The API returns
+        a handle to the async analysis job. A submitted job can be in either one of
+        the following states  * PENDING Task created and submitted to the Executor
+        but not yet running  * RUNNING Task being executed and analysis in progress  *
+        ERROR Task analysis complete with error  * DONE Task analysis completed successfully '
+      operationId: submitForAnalysis
+      parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uuid
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+  /search:
+    get:
+      tags:
+      - file-analyzer-controller
+      summary: Search for files that contain a file ID
+      description: Search can be optionally filtered on date the files found
+      operationId: getFileReferences
+      parameters:
+      - name: fileId
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Success
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+  /analyze/{taskId}:
+    get:
+      tags:
+      - file-analyzer-controller
+      summary: Find the status of a submitted task
+      description: The API takes the task job handle returned by the job submission
+        API and returns the Task details
+      operationId: getAnalysisStatus
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+components:
+  schemas:
+    Task:
+      type: object
+      properties:
+        taskId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        fileId:
+          type: string
+        taskStatus:
+          type: string
+          enum:
+          - PENDING
+          - RUNNING
+          - ERROR
+          - DONE
+        taskResult:
+          type: array
+          items:
+            type: string
