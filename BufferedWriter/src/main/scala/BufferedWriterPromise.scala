@@ -7,8 +7,8 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
-object BufferedWriterPromise extends App {
-  private val BATCH_SIZE = 5
+class BufferedWriterPromise {
+  private val BATCH_SIZE = 20
   private val es: ExecutorService = Executors.newCachedThreadPool()
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(es)
 
@@ -16,8 +16,15 @@ object BufferedWriterPromise extends App {
 
   /** Write pending inserts to this write-pending queue */
   private val writePendingQueue = new ListBuffer[(String, Seq[Seq[Any]], Promise[InsertResult])]()
+  print("Write pending queue initialized\n")
+  print(writePendingQueue)
 
   private def addToQueue(sql: String, rows: Seq[Seq[Any]], promise: Promise[InsertResult]): Int = {
+    if (sql == null || rows == null || promise == null || writePendingQueue == null) {
+      throw new IllegalArgumentException("SQL, rows, and promise must not be null")
+    }
+    print(s"Adding ${rows.size} rows to queue for SQL: $sql\n")
+
     writePendingQueue.append((sql, rows, promise))
     writePendingQueue.foldLeft(0) { (acc, elem) =>
       acc + elem._2.size
@@ -28,32 +35,33 @@ object BufferedWriterPromise extends App {
   def insert(sql: String, rows: Seq[Seq[Any]]): Future[InsertResult] = {
     val promise = Promise[InsertResult]()
 
-    val (shouldWrite, totalRows) = this.synchronized {
-      val totalRows = addToQueue(sql, rows, promise)
-      (totalRows >= BATCH_SIZE, totalRows)
-    }
-
-    if (shouldWrite) {
-      val queueCopy = this.synchronized {
-        val copy = ListBuffer[(String, Seq[Seq[Any]], Promise[InsertResult])]() ++= writePendingQueue
-        writePendingQueue.clear()
-        copy
+    this.synchronized {
+      val (shouldWrite, totalRows) = {
+        val totalRows = addToQueue(sql, rows, promise)
+        (totalRows >= BATCH_SIZE, totalRows)
       }
 
-      Future {
-        val rowsWritten = writeRows(queueCopy)
-        // Complete all promises with the number of rows they contributed
-        queueCopy.foreach { case (_, batchRows, p) =>
-          p.success(InsertResult(LocalDateTime.now()))
+      if (shouldWrite) {
+        val queueCopy = {
+          val copy = ListBuffer[(String, Seq[Seq[Any]], Promise[InsertResult])]() ++= writePendingQueue
+          writePendingQueue.clear()
+          copy
         }
-      }.onComplete {
-        case Failure(ex) =>
-          // Complete all promises with failure in case of error
-          queueCopy.foreach { case (_, _, p) => p.failure(ex) }
-        case _ => // Success is already handled above
+
+        Future {
+          val rowsWritten = writeRows(queueCopy)
+          // Complete all promises with the number of rows they contributed
+          queueCopy.foreach { case (_, batchRows, p) =>
+            p.success(InsertResult(LocalDateTime.now()))
+          }
+        }.onComplete {
+          case Failure(ex) =>
+            // Complete all promises with failure in case of error
+            queueCopy.foreach { case (_, _, p) => p.failure(ex) }
+          case _ => // Success is already handled above
+        }
       }
     }
-
     promise.future
   }
 

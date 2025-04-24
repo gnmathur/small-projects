@@ -1,5 +1,3 @@
-import BufferedWriterPromise.getConnection
-
 import java.sql.{Connection, DriverManager, SQLException}
 import java.time.LocalDateTime
 import java.util.concurrent.{ExecutorService, Executors, LinkedBlockingQueue}
