@@ -1,5 +1,3 @@
-import BufferedWriter.getConnection
-
 import java.sql.{Connection, DriverManager, PreparedStatement, SQLException}
 import java.time.LocalDateTime
 import java.util.concurrent.{ExecutorService, Executors}
@@ -8,7 +6,7 @@ import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
 class BufferedWriterPromise {
-  private val BATCH_SIZE = 20
+  private val BATCH_SIZE = 100
   private val es: ExecutorService = Executors.newCachedThreadPool()
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(es)
 
@@ -16,14 +14,25 @@ class BufferedWriterPromise {
 
   /** Write pending inserts to this write-pending queue */
   private val writePendingQueue = new ListBuffer[(String, Seq[Seq[Any]], Promise[InsertResult])]()
-  print("Write pending queue initialized\n")
-  print(writePendingQueue)
+
+  def shutdown(): Unit = {
+    es.shutdown()
+
+    try {
+      if (!es.awaitTermination(60, java.util.concurrent.TimeUnit.SECONDS)) {
+        es.shutdownNow()
+      }
+    } catch {
+      case e: InterruptedException =>
+        es.shutdownNow()
+        Thread.currentThread().interrupt()
+    }
+  }
 
   private def addToQueue(sql: String, rows: Seq[Seq[Any]], promise: Promise[InsertResult]): Int = {
     if (sql == null || rows == null || promise == null || writePendingQueue == null) {
       throw new IllegalArgumentException("SQL, rows, and promise must not be null")
     }
-    print(s"Adding ${rows.size} rows to queue for SQL: $sql\n")
 
     writePendingQueue.append((sql, rows, promise))
     writePendingQueue.foldLeft(0) { (acc, elem) =>
@@ -126,6 +135,11 @@ class BufferedWriterPromise {
         throw ex
     }
   }
+}
+
+object BufferedWriterPromiseUnitTest extends App {
+  private val es: ExecutorService = Executors.newCachedThreadPool()
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(es)
 
   private def runUseCase(): Unit = {
     // Specify the insert string
@@ -144,14 +158,17 @@ class BufferedWriterPromise {
       Seq(6, "Krishna", 3000.0, LocalDateTime.now())
     )
 
+    // Create an instance of BufferedWriterPromise
+    val bufferedWriter = new BufferedWriterPromise()
+
     // Insert the rows and handle the futures
-    val f1 = insert(insertSql, rowsT0)
+    val f1 = bufferedWriter.insert(insertSql, rowsT0)
     f1.onComplete {
       case Success(at) => println(s"First batch: Successfully inserted at $at")
       case Failure(ex) => println(s"First batch: Failed to insert rows - ${ex.getMessage}")
     }
 
-    val f2 = insert(insertSql, rowsT1)
+    val f2 = bufferedWriter.insert(insertSql, rowsT1)
     f2.onComplete {
       case Success(at) => println(s"Second batch: Successfully inserted at $at")
       case Failure(ex) => println(s"Second batch: Failed to insert rows - ${ex.getMessage}")
@@ -160,6 +177,8 @@ class BufferedWriterPromise {
     // Wait for both futures to complete
     import scala.concurrent.duration._
     Await.ready(Future.sequence(Seq(f1, f2)), 1.minute)
+
+    bufferedWriter.shutdown()
   }
 
   runUseCase()
