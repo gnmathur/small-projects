@@ -9,3 +9,6 @@ lazy val root = (project in file("."))
 
 // Postgres
 libraryDependencies += "org.postgresql" % "postgresql" % "42.6.0"
+
+// Hikari CP
+libraryDependencies += "com.zaxxer" % "HikariCP" % "6.3.0"

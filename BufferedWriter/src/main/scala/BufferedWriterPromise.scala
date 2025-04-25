@@ -1,14 +1,31 @@
-import java.sql.{Connection, DriverManager, PreparedStatement, SQLException}
+import java.sql.{Connection, PreparedStatement, SQLException}
 import java.time.LocalDateTime
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
+// Add HikariCP imports
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
+
 class BufferedWriterPromise {
-  private val BATCH_SIZE = 100
+  private val BATCH_SIZE = 1000
   private val es: ExecutorService = Executors.newCachedThreadPool()
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(es)
+
+  // Configure and create connection pool
+  private val connectionPool: HikariDataSource = {
+    val config = new HikariConfig()
+    config.setJdbcUrl("jdbc:postgresql://localhost:5432/postgres")
+    config.setUsername("postgres")
+    config.setPassword("postgres")
+    config.setMaximumPoolSize(10) // Set fixed pool size
+    config.setMinimumIdle(5)      // Minimum number of idle connections
+    config.setIdleTimeout(30000)  // How long a connection can remain idle before being removed
+    config.setConnectionTimeout(10000) // Maximum time to wait for a connection from the pool
+    config.setPoolName("BufferedWriterConnectionPool")
+    new HikariDataSource(config)
+  }
 
   case class InsertResult(writtenAt: LocalDateTime)
 
@@ -26,6 +43,11 @@ class BufferedWriterPromise {
       case e: InterruptedException =>
         es.shutdownNow()
         Thread.currentThread().interrupt()
+    } finally {
+      // Close the connection pool when shutting down
+      if (connectionPool != null && !connectionPool.isClosed) {
+        connectionPool.close()
+      }
     }
   }
 
@@ -79,7 +101,8 @@ class BufferedWriterPromise {
     var totalRowsWritten = 0
 
     try {
-      conn = getConnection
+      // Get connection from the pool instead of creating a new one
+      conn = connectionPool.getConnection()
       conn.setAutoCommit(false)
 
       // Group by SQL statement
@@ -119,22 +142,15 @@ class BufferedWriterPromise {
         if (conn != null) conn.rollback()
         throw ex
     } finally {
+      // Return connection to the pool instead of closing it
       if (conn != null) {
-        conn.close()
+        conn.close() // In Hikari, this returns the connection to the pool rather than actually closing it
       }
     }
   }
 
-  private def getConnection: Connection = {
-    Class.forName("org.postgresql.Driver")
-    try {
-      DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "postgres", "postgres")
-    } catch {
-      case ex: SQLException =>
-        println(s"Failed to obtain connection: ${ex.getMessage}")
-        throw ex
-    }
-  }
+  // This method is no longer needed as we're using the connection pool
+  // private def getConnection: Connection = { ... }
 }
 
 object BufferedWriterPromiseUnitTest extends App {
