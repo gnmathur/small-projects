@@ -15,8 +15,8 @@ libraryDependencies += "com.zaxxer" % "HikariCP" % "6.3.0"
 
 // Logging - Consolidated and made more explicit
 libraryDependencies ++= Seq(
-  "org.slf4j" % "slf4j-api" % "2.0.7",
-  "org.slf4j" % "slf4j-simple" % "2.0.7"
+  "org.slf4j" % "slf4j-api" % "2.0.13",       // SLF4J API (Facade)
+  "ch.qos.logback" % "logback-classic" % "1.5.6" // Logback Implementation (for SLF4J 2.x)
 )
 
 // Enable assembly plugin

@@ -1,14 +1,17 @@
-import lib.BufferedWriter // Assuming this is your class handling inserts
+package tester.legacy
+
+import lib.BufferedWriter
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.time.LocalDateTime
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger // Use AtomicInteger for thread-safe counters
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Random, Success, Try} // Import Try
 
 /**
- * Test module for BufferedWriter using Future.sequence for proper completion waiting.
+ * A version of BufferedWriterScaleTester that uses a different approach to handle insert futures. This one waits for
+ * all insert futures to complete before proceeding, and uses a latch to synchronize the completion of all worker threads.
  */
 object BufferedWriterScaleTester2 extends App { // Renamed to avoid conflicts if running side-by-side
   private val logger: Logger = LoggerFactory.getLogger(this.getClass)

@@ -1,10 +1,11 @@
+package tester.legacy
+
 import lib.BufferedWriter
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.time.LocalDateTime
 import java.util.concurrent.{CountDownLatch, Executors}
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Random, Success}
 
 /**
