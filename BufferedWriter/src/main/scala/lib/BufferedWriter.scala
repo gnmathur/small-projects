@@ -1,6 +1,10 @@
-import java.sql.{Connection, PreparedStatement, SQLException}
+package lib
+
+import org.slf4j.{Logger, LoggerFactory}
+
+import java.sql.{Connection, SQLException}
 import java.time.LocalDateTime
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.{ExecutorService, Executors, LinkedBlockingQueue}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
@@ -8,17 +12,26 @@ import scala.util.{Failure, Success}
 // Add HikariCP imports
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
-class BufferedWriterPromise {
-  private val BATCH_SIZE = 1000
+class BufferedWriter(BATCH_SIZE: Int,
+                     pgHost: String,
+                     pgPort: Int,
+                     pgDb: String,
+                     pgUser: String,
+                     pgPassword: String) {
+  private val logger: Logger = LoggerFactory.getLogger(this.getClass)
+
   private val es: ExecutorService = Executors.newCachedThreadPool()
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(es)
 
-  // Configure and create connection pool
+  private val jdbcURL = s"jdbc:postgresql://$pgHost:$pgPort/$pgDb"
+
   private val connectionPool: HikariDataSource = {
+    Class.forName("org.postgresql.Driver")
+
     val config = new HikariConfig()
-    config.setJdbcUrl("jdbc:postgresql://localhost:5432/postgres")
-    config.setUsername("postgres")
-    config.setPassword("postgres")
+    config.setJdbcUrl(jdbcURL)
+    config.setUsername(pgUser)
+    config.setPassword(pgPassword)
     config.setMaximumPoolSize(10) // Set fixed pool size
     config.setMinimumIdle(5)      // Minimum number of idle connections
     config.setIdleTimeout(30000)  // How long a connection can remain idle before being removed
@@ -130,7 +143,9 @@ class BufferedWriterPromise {
       }
 
       conn.commit()
-      println(s"Transaction committed with $totalRowsWritten rows")
+
+      logger.debug(s"Transaction committed with $totalRowsWritten rows")
+
       totalRowsWritten
     } catch {
       case ex: SQLException =>
@@ -148,55 +163,4 @@ class BufferedWriterPromise {
       }
     }
   }
-
-  // This method is no longer needed as we're using the connection pool
-  // private def getConnection: Connection = { ... }
-}
-
-object BufferedWriterPromiseUnitTest extends App {
-  private val es: ExecutorService = Executors.newCachedThreadPool()
-  implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(es)
-
-  private def runUseCase(): Unit = {
-    // Specify the insert string
-    val insertSql = "INSERT INTO users (id, name, balance, created_date) VALUES (?, ?, ?, ?)"
-
-    // Create two sets of rows to insert, emulating two separate insert operations at different times
-    val rowsT0 = Seq(
-      Seq(1, "Jai", 4000.0, LocalDateTime.now()),
-      Seq(2, "Veeru", 5000.0, LocalDateTime.now()),
-      Seq(3, "Samba", 6000.0, LocalDateTime.now())
-    )
-
-    val rowsT1 = Seq(
-      Seq(4, "Ram", 1000.0, LocalDateTime.now()),
-      Seq(5, "Shyam", 2000.0, LocalDateTime.now()),
-      Seq(6, "Krishna", 3000.0, LocalDateTime.now())
-    )
-
-    // Create an instance of BufferedWriterPromise
-    val bufferedWriter = new BufferedWriterPromise()
-
-    // Insert the rows and handle the futures
-    val f1 = bufferedWriter.insert(insertSql, rowsT0)
-    f1.onComplete {
-      case Success(at) => println(s"First batch: Successfully inserted at $at")
-      case Failure(ex) => println(s"First batch: Failed to insert rows - ${ex.getMessage}")
-    }
-
-    val f2 = bufferedWriter.insert(insertSql, rowsT1)
-    f2.onComplete {
-      case Success(at) => println(s"Second batch: Successfully inserted at $at")
-      case Failure(ex) => println(s"Second batch: Failed to insert rows - ${ex.getMessage}")
-    }
-
-    // Wait for both futures to complete
-    import scala.concurrent.duration._
-    Await.ready(Future.sequence(Seq(f1, f2)), 1.minute)
-
-    bufferedWriter.shutdown()
-  }
-
-  runUseCase()
-  es.shutdown()
 }

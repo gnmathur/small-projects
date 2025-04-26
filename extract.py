@@ -156,7 +156,7 @@ def process_directory(input_dir, output_dir):
 
                     # Create output filename
                     sanitized_episode_title = sanitize_filename(episode_title)
-                    output_filename = f"{sanitized_podcast_name}-{sanitized_episode_title}-{date_str}.txt"
+                    output_filename = f"{sanitized_podcast_name}-{date_str}-{sanitized_episode_title}.txt"
                     output_path = os.path.join(podcast_dir, output_filename)
 
                     # Write extracted text to file

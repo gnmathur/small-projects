@@ -1,19 +1,23 @@
-import java.sql.{Connection, DriverManager, SQLException, Statement}
+import lib.BufferedWriter
+import org.slf4j.{Logger, LoggerFactory}
+
 import java.time.LocalDateTime
 import java.util.concurrent.{CountDownLatch, Executors}
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Random, Success, Try}
-import scala.concurrent.duration._
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Random, Success}
 
 /**
  * Test module for BufferedWriterPromise
  * This is an independent test that uses the BufferedWriter API
  */
-object BufferedWriterTest extends App {
+object BufferedWriterScaleTester extends App {
+  private val logger: Logger = LoggerFactory.getLogger(this.getClass)
+
   // Configuration
-  private val ROWS_PER_THREAD = 100_000 // 100K rows per thread
-  private val THREAD_COUNT = 3
-  private val ROWS_PER_BATCH = 20 // How many rows to insert in a single batch
+  private val ROWS_PER_THREAD = 10_000 // 100K rows per thread
+  private val THREAD_COUNT = 2
+  private val ROWS_PER_BATCH = 100 // How many rows to insert in a single batch
 
   // Statistics
   @volatile private var totalRowsInserted = 0
@@ -36,7 +40,7 @@ object BufferedWriterTest extends App {
    * @param startId The first ID to use for this thread
    * @return Future containing the number of rows inserted
    */
-  def runTestWorker(threadId: Int, startId: Int, bufferedWriterPromise: BufferedWriterPromise): Future[Int] = Future {
+  def runTestWorker(threadId: Int, startId: Int, bufferedWriterPromise: BufferedWriter): Future[Int] = Future {
     println(s"Thread $threadId starting with ID range: $startId to ${startId + ROWS_PER_THREAD - 1}")
     val startTime = System.currentTimeMillis()
 
@@ -63,16 +67,14 @@ object BufferedWriterTest extends App {
           // Track the future for later result reporting without blocking
           insertFuture.onComplete {
             case Success(result) =>
+              println(s"Completed $totalFuturesSucceeded successfully")
               synchronized {
                 totalFuturesSucceeded += 1
-                if (totalFuturesSucceeded % 100 == 0) {
-                  println(s"Completed $totalFuturesSucceeded insert futures so far")
-                }
               }
             case Failure(ex) =>
+              println(s"Future failed: $ex.getMessage")
               synchronized {
                 totalFuturesFailed += 1
-                println(s"Future failed: ${ex.getMessage}")
                 if (ex.getMessage == null) {
                   ex.printStackTrace()
                 }
@@ -85,21 +87,24 @@ object BufferedWriterTest extends App {
           // Record the fact that we've queued the rows
           rowsInserted += rows.size
           if (rowsInserted % 10000 == 0) {
-            println(s"Thread $threadId progress: $rowsInserted rows queued")
+            logger.debug("Thread {} queued {} rows", threadId, rowsInserted)
           }
         } catch {
           case ex: Exception =>
-            println(s"Thread $threadId batch insert failed: ${ex.getMessage}")
+            logger.error(s"Thread $threadId failed to insert batch: ${ex.getMessage}")
             if (ex.getMessage == null) {
               ex.printStackTrace()
             }
           // Continue with next batch rather than failing the entire thread
         }
+
+        // wait for a random 1 - 10ms delay
+        val delay = 1 + random.nextInt(10)
+        Thread.sleep(delay)
       }
 
       val duration = System.currentTimeMillis() - startTime
       println(s"Thread $threadId completed. Queued $rowsInserted rows in ${duration}ms (${rowsInserted * 1000.0 / duration} rows/sec)")
-      println(s"Thread $threadId has ${pendingFutures.size} pending futures")
 
       // Store result and count down latch
       threadResults(threadId) = rowsInserted
@@ -108,7 +113,7 @@ object BufferedWriterTest extends App {
       rowsInserted
     } catch {
       case ex: Exception =>
-        println(s"Thread $threadId failed with error: ${ex.getMessage}")
+        logger.error(s"Thread $threadId encountered an error: ${ex.getMessage}")
         if (ex.getMessage == null) {
           ex.printStackTrace()
         }
@@ -124,19 +129,13 @@ object BufferedWriterTest extends App {
     val startTime = System.currentTimeMillis()
     println(s"Starting test with $THREAD_COUNT threads, each inserting $ROWS_PER_THREAD rows")
 
-    // Test database connection first
-    // testDatabaseConnection()
-
-    // Create DDL if needed (this would happen outside the test in real scenarios)
-    // createTestTable()
-
     // Create an instance of BufferedWriterPromise
-    val bufferedWriterPromise = new BufferedWriterPromise()
+    val bufferedWriter = new BufferedWriter(2000, "192.168.52.194", 5432, "scaling-tests", "postgres", "postgres")
 
     // Launch all worker threads
     val futures = (0 until THREAD_COUNT).map { threadId =>
       val startId = threadId * ROWS_PER_THREAD
-      runTestWorker(threadId, startId, bufferedWriterPromise)
+      runTestWorker(threadId, startId, bufferedWriter)
     }
 
     // Wait for all worker threads to complete
@@ -169,101 +168,16 @@ object BufferedWriterTest extends App {
       println(s"Thread $i queued ${threadResults(i)} rows")
     }
 
-    // Wait for a moment to allow more futures to complete and print final stats
-    println("\nWaiting 5 seconds for remaining futures to complete...")
-    Thread.sleep(5000)
+    // Wait for a moment to allow more futures to complete and print final stats. This is really for the thread
+    // Futures created via insert to complete. I have not been able to find out a way to wait for all futures to complete
+    println("\nWaiting 10 seconds for remaining futures to complete...")
+    Thread.sleep(20_000)
     println(s"Final count - Futures completed successfully: $totalFuturesSucceeded")
     println(s"Final count - Futures failed: $totalFuturesFailed")
 
     // Clean up
     executor.shutdown()
-    bufferedWriterPromise.shutdown()
-  }
-
-  /**
-   * Test database connection to diagnose issues early
-   */
-  private def testDatabaseConnection(): Unit = {
-    var conn: Connection = null
-    try {
-      Class.forName("org.postgresql.Driver")
-      println("PostgreSQL JDBC Driver loaded successfully")
-
-      conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "postgres", "postgres")
-      println("Database connection test successful")
-    } catch {
-      case e: ClassNotFoundException =>
-        println("ERROR: PostgreSQL JDBC Driver not found")
-        e.printStackTrace()
-        throw e
-      case e: SQLException =>
-        println(s"ERROR: Failed to connect to database: ${e.getMessage}")
-        e.printStackTrace()
-        throw e
-    } finally {
-      try {
-        if (conn != null) conn.close()
-      } catch {
-        case e: SQLException => e.printStackTrace()
-      }
-    }
-  }
-
-  /**
-   * Utility method to create the test table if it doesn't exist
-   */
-  private def createTestTable(): Unit = {
-    var conn: Connection = null
-    var stmt: Statement = null
-
-    try {
-      conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "postgres", "postgres")
-      stmt = conn.createStatement()
-
-      // Drop table if exists
-      stmt.execute("DROP TABLE IF EXISTS users")
-
-      // Create table
-      stmt.execute("""
-        CREATE TABLE users (
-          id INTEGER PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          balance NUMERIC(10, 2) NOT NULL,
-          created_date TIMESTAMP NOT NULL
-        )
-      """)
-
-      // Add some test data to verify we can read/write
-      stmt.execute("INSERT INTO users VALUES (0, 'TestUser', 100.0, now())")
-
-      // Verify the connection works by reading back the test data
-      val rs = stmt.executeQuery("SELECT * FROM users WHERE id = 0")
-      if (rs.next()) {
-        println(s"Successfully read test record: id=${rs.getInt("id")}, name=${rs.getString("name")}")
-      } else {
-        println("WARNING: Could not read test record")
-      }
-      rs.close()
-
-      println("Test table created and verified successfully")
-    } catch {
-      case ex: Exception =>
-        println(s"Failed to create test table: ${ex.getMessage}")
-        ex.printStackTrace()
-        throw ex
-    } finally {
-      try {
-        if (stmt != null) stmt.close()
-      } catch {
-        case e: Exception => e.printStackTrace()
-      }
-
-      try {
-        if (conn != null) conn.close()
-      } catch {
-        case e: Exception => e.printStackTrace()
-      }
-    }
+    bufferedWriter.shutdown()
   }
 
   // Run the test
