@@ -8,4 +8,3 @@ class Stats {
   @volatile var futuresSucceeded: Int = 0
   @volatile var futuresFailed: Int = 0
 }
-

@@ -21,7 +21,7 @@ class TestDriver(config: TestConfig) {
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
 
   private val bufferedWriter = new BufferedWriter(
-    config.batchSize,
+    config.batchSizeForBufferedWriter,
     config.dbHost,
     config.dbPort,
     config.dbName,

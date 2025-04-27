@@ -16,7 +16,7 @@ import io.prometheus.client.hotspot.DefaultExports
 // HikariCP imports
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
-class BufferedWriter(BATCH_SIZE: Int,
+class BufferedWriter(batchSize: Int,
                      pgHost: String,
                      pgPort: Int,
                      pgDb: String,
@@ -65,6 +65,26 @@ class BufferedWriter(BATCH_SIZE: Int,
     .help("Current size of the connection pool")
     .register()
 
+  // Add metrics for successful and failed futures
+  private val successfulFuturesCounter = Counter.build()
+    .name("buffered_writer_successful_futures_total")
+    .help("Total number of successful futures in BufferedWriter")
+    .register()
+
+  private val failedFuturesCounter = Counter.build()
+    .name("buffered_writer_failed_futures_total")
+    .help("Total number of failed futures in BufferedWriter")
+    .labelNames("error_type")
+    .register()
+
+  private val futureLatency = Summary.build()
+    .name("buffered_writer_future_execution_time_seconds")
+    .help("Execution time of futures in BufferedWriter")
+    .quantile(0.5, 0.05)
+    .quantile(0.9, 0.01)
+    .labelNames("status")  // "success" or "failure"
+    .register()
+
   // Register JVM metrics
   DefaultExports.initialize()
 
@@ -80,7 +100,7 @@ class BufferedWriter(BATCH_SIZE: Int,
     config.setJdbcUrl(jdbcURL)
     config.setUsername(pgUser)
     config.setPassword(pgPassword)
-    config.setMaximumPoolSize(15) // Set fixed pool size
+    config.setMaximumPoolSize(6) // Set fixed pool size
     config.setMinimumIdle(5)      // Minimum number of idle connections
     config.setIdleTimeout(30000)  // How long a connection can remain idle before being removed
     config.setConnectionTimeout(10000) // Maximum time to wait for a connection from the pool
@@ -135,12 +155,13 @@ class BufferedWriter(BATCH_SIZE: Int,
   /** Insert rows into Postgres */
   def insert(sql: String, rows: Seq[Seq[Any]]): Future[InsertResult] = {
     val promise = Promise[InsertResult]()
-    val timer = insertLatency.startTimer()
+    val insertTimer = insertLatency.startTimer()
+    val startTime = System.nanoTime() // For tracking future execution time
 
     this.synchronized {
       val (shouldWrite, totalRows) = {
         val totalRows = addToQueue(sql, rows, promise)
-        (totalRows >= BATCH_SIZE, totalRows)
+        (totalRows >= batchSize, totalRows)
       }
 
       if (shouldWrite) {
@@ -173,16 +194,32 @@ class BufferedWriter(BATCH_SIZE: Int,
             p.success(InsertResult(LocalDateTime.now()))
           }
         }.onComplete {
+          case Success(_) =>
+            // Track successful futures
+            successfulFuturesCounter.inc()
+            val executionTimeSeconds = (System.nanoTime() - startTime) / 1.0e9
+            futureLatency.labels("success").observe(executionTimeSeconds)
+            logger.debug(s"Batch write operation completed successfully in $executionTimeSeconds seconds")
+
           case Failure(ex) =>
             // Complete all promises with failure in case of error
             queueCopy.foreach { case (_, _, p, _) => p.failure(ex) }
-          case _ => // Success is already handled above
+
+            // Track failed futures with error type
+            val errorType = ex.getClass.getSimpleName
+            failedFuturesCounter.labels(errorType).inc()
+            val executionTimeSeconds = (System.nanoTime() - startTime) / 1.0e9
+            futureLatency.labels("failure").observe(executionTimeSeconds)
+
+            logger.error(s"Batch write operation failed after $executionTimeSeconds seconds: ${ex.getMessage}", ex)
         }
       }
     }
 
     // When the future completes, stop the timer
-    promise.future.onComplete { _ => timer.observeDuration() }
+    promise.future.onComplete {
+      case _ => insertTimer.observeDuration()
+    }
 
     promise.future
   }

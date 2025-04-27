@@ -1,7 +1,7 @@
 package tester.ratedefined
 
 import org.slf4j.{Logger, LoggerFactory}
-import tester.ratedefined.TestConfig.{DEFAULT_CONSUMER_COUNT, DEFAULT_PRODUCER_RATE_PER_SEC, DEFAULT_QUEUE_CAPACITY, DEFAULT_ROWS_PER_BATCH, DEFAULT_TOTAL_ROWS_TO_PRODUCE}
+import tester.ratedefined.TestConfig.{DEFAULT_BATCH_SIZE_FOR_BUFFERED_WRITER, DEFAULT_CONSUMER_COUNT, DEFAULT_PRODUCER_RATE_PER_SEC, DEFAULT_QUEUE_CAPACITY, DEFAULT_ROWS_PER_BATCH, DEFAULT_TOTAL_ROWS_TO_PRODUCE}
 
 /**
  * Modular implementation of BufferedWriterScaleTester using a producer-consumer pattern
@@ -28,7 +28,8 @@ object RateDefinedBufferedWriterTester extends App {
         producerRatePerSec = DEFAULT_PRODUCER_RATE_PER_SEC,
         consumerCount = DEFAULT_CONSUMER_COUNT,
         rowsPerBatch = DEFAULT_ROWS_PER_BATCH,
-        totalRows = DEFAULT_TOTAL_ROWS_TO_PRODUCE
+        totalRows = DEFAULT_TOTAL_ROWS_TO_PRODUCE,
+        batchSizeForBufferedWriter = DEFAULT_BATCH_SIZE_FOR_BUFFERED_WRITER
       )
 
       logger.info(s"Starting test with config: $config")
