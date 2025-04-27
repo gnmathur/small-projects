@@ -17,9 +17,9 @@ case class TestConfig(
 
 object TestConfig {
   // Default configuration values
-  val DEFAULT_QUEUE_CAPACITY: Int = 10000
-  val DEFAULT_PRODUCER_RATE_PER_SEC: Int = 5000
+  val DEFAULT_QUEUE_CAPACITY: Int = 1000
+  val DEFAULT_PRODUCER_RATE_PER_SEC: Int = 10000
   val DEFAULT_CONSUMER_COUNT: Int = 5
   val DEFAULT_ROWS_PER_BATCH: Int = 100
-  val DEFAULT_TOTAL_ROWS_TO_PRODUCE: Int = 500_000
+  val DEFAULT_TOTAL_ROWS_TO_PRODUCE: Int = 4_000_000
 }

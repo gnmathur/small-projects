@@ -14,6 +14,13 @@ object RateDefinedBufferedWriterTester extends App {
    * Main entry point - create config and run the test
    */
   private def main(): Unit = {
+    import io.prometheus.client.exporter.HTTPServer
+
+    // Start HTTP server to expose metrics on port 8080
+    val server = new HTTPServer.Builder()
+      .withPort(8989)
+      .build()
+
     try {
       // Create configuration - can be loaded from properties file or command line args
       val config = TestConfig(
@@ -28,6 +35,8 @@ object RateDefinedBufferedWriterTester extends App {
 
       val driver = new TestDriver(config)
       driver.run()
+
+      server.stop()
     } catch {
       case ex: Exception =>
         logger.error(s"Test failed with error: ${ex.getMessage}", ex)

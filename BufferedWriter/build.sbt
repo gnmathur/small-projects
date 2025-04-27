@@ -19,6 +19,10 @@ libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.5.6" // Logback Implementation (for SLF4J 2.x)
 )
 
+libraryDependencies += "io.prometheus" % "simpleclient" % "0.16.0"
+libraryDependencies += "io.prometheus" % "simpleclient_hotspot" % "0.16.0"
+libraryDependencies += "io.prometheus" % "simpleclient_httpserver" % "0.16.0" // If you want to expose metrics via HTTP
+
 // Enable assembly plugin
 enablePlugins(AssemblyPlugin)
 
