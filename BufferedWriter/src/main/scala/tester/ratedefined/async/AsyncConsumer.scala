@@ -1,6 +1,7 @@
-package tester.ratedefined
+package tester.ratedefined.async
 
-import lib.BufferedWriter
+import lib.AsyncBufferedWriter
+import tester.ratedefined.{Stats, UserRow}
 
 import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch, TimeUnit}
 import scala.concurrent.ExecutionContext
@@ -9,10 +10,10 @@ import scala.util.{Failure, Success}
 /**
  * The Consumer class - takes batches from the queue and inserts them using BufferedWriter
  */
-class Consumer(
+class AsyncConsumer(
                 id: Int,
                 queue: ArrayBlockingQueue[List[UserRow]],
-                bufferedWriter: BufferedWriter,
+                bufferedWriter: AsyncBufferedWriter,
                 stats: Stats,
                 producerDone: CountDownLatch,
                 consumersDone: CountDownLatch

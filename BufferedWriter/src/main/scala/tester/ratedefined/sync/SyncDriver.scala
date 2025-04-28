@@ -1,6 +1,7 @@
-package tester.ratedefined
+package tester.ratedefined.sync
 
-import lib.BufferedWriter
+import lib.SyncBufferedWriter
+import tester.ratedefined.{Producer, Stats, TestConfig, UserRow}
 
 import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch, Executors, TimeUnit}
 import scala.concurrent.ExecutionContext
@@ -8,7 +9,7 @@ import scala.concurrent.ExecutionContext
 /**
  * Main test driver that sets up and coordinates the producer and consumers
  */
-class TestDriver(config: TestConfig) {
+class SyncDriver(config: TestConfig) {
   private val logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
   private val stats = new Stats()
@@ -20,7 +21,7 @@ class TestDriver(config: TestConfig) {
   private val consumerExecutor = Executors.newFixedThreadPool(config.consumerCount)
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
 
-  private val bufferedWriter = new BufferedWriter(
+  private val bufferedWriter = new SyncBufferedWriter(
     config.batchSizeForBufferedWriter,
     config.dbHost,
     config.dbPort,
@@ -46,7 +47,8 @@ class TestDriver(config: TestConfig) {
 
     // Start the consumers
     for (i <- 0 until config.consumerCount) {
-      val consumer = new Consumer(i, queue, bufferedWriter, stats, producerDone, consumersDone)
+      //val consumer = new Consumer(i, queue, bufferedWriter, stats, producerDone, consumersDone)
+      val consumer = new SyncConsumer(i, queue, bufferedWriter, stats, producerDone, consumersDone)
       consumerExecutor.submit(consumer)
     }
 

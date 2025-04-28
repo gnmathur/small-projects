@@ -1,6 +1,6 @@
 package tester.legacy
 
-import lib.BufferedWriter
+import lib.AsyncBufferedWriter
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.time.LocalDateTime
@@ -41,7 +41,7 @@ object BufferedWriterScaleTester extends App {
    * @param startId The first ID to use for this thread
    * @return Future containing the number of rows inserted
    */
-  def runTestWorker(threadId: Int, startId: Int, bufferedWriterPromise: BufferedWriter): Future[Int] = Future {
+  def runTestWorker(threadId: Int, startId: Int, bufferedWriterPromise: AsyncBufferedWriter): Future[Int] = Future {
     println(s"Thread $threadId starting with ID range: $startId to ${startId + ROWS_PER_THREAD - 1}")
     val startTime = System.currentTimeMillis()
 
@@ -131,7 +131,7 @@ object BufferedWriterScaleTester extends App {
     println(s"Starting test with $THREAD_COUNT threads, each inserting $ROWS_PER_THREAD rows")
 
     // Create an instance of BufferedWriterPromise
-    val bufferedWriter = new BufferedWriter(2000, "192.168.52.194", 5432, "scaling-tests", "postgres", "postgres")
+    val bufferedWriter = new AsyncBufferedWriter(2000, "192.168.52.194", 5432, "scaling-tests", "postgres", "postgres")
 
     // Launch all worker threads
     val futures = (0 until THREAD_COUNT).map { threadId =>

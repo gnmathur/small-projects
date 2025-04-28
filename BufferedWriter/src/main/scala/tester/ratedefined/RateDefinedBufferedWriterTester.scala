@@ -1,7 +1,9 @@
 package tester.ratedefined
 
 import org.slf4j.{Logger, LoggerFactory}
-import tester.ratedefined.TestConfig.{DEFAULT_BATCH_SIZE_FOR_BUFFERED_WRITER, DEFAULT_CONSUMER_COUNT, DEFAULT_PRODUCER_RATE_PER_SEC, DEFAULT_QUEUE_CAPACITY, DEFAULT_ROWS_PER_BATCH, DEFAULT_TOTAL_ROWS_TO_PRODUCE}
+import tester.ratedefined.TestConfig._
+import tester.ratedefined.async.AsyncDriver
+import tester.ratedefined.sync.SyncDriver
 
 /**
  * Modular implementation of BufferedWriterScaleTester using a producer-consumer pattern
@@ -10,13 +12,12 @@ import tester.ratedefined.TestConfig.{DEFAULT_BATCH_SIZE_FOR_BUFFERED_WRITER, DE
 object RateDefinedBufferedWriterTester extends App {
   private val logger: Logger = LoggerFactory.getLogger(this.getClass)
 
-  /**
-   * Main entry point - create config and run the test
-   */
   private def main(): Unit = {
     import io.prometheus.client.exporter.HTTPServer
 
-    // Start HTTP server to expose metrics on port 8080
+    val mode = parseArgs(args)
+
+    // Start HTTP server to expose Prometheus metrics on port 8080
     val server = new HTTPServer.Builder()
       .withPort(8989)
       .build()
@@ -34,13 +35,40 @@ object RateDefinedBufferedWriterTester extends App {
 
       logger.info(s"Starting test with config: $config")
 
-      val driver = new TestDriver(config)
-      driver.run()
-
-      server.stop()
+      // Choose driver based on mode
+      mode match {
+        case "sync" =>
+          logger.info("Running in synchronous mode")
+          new SyncDriver(config).run()
+        case "async" =>
+          logger.info("Running in asynchronous mode")
+          new AsyncDriver(config).run()
+      }
+      server.close()
     } catch {
       case ex: Exception =>
         logger.error(s"Test failed with error: ${ex.getMessage}", ex)
+    }
+  }
+
+  /**
+   * Parse command line arguments to determine sync or async mode
+   * @param args Command line arguments
+   * @return String representing the mode ("sync" or "async")
+   */
+  private def parseArgs(args: Array[String]): String = {
+    if (args.isEmpty) {
+      logger.info("No mode specified, defaulting to async mode")
+      "async"
+    } else {
+      val mode = args(0).toLowerCase
+      mode match {
+        case "sync" | "async" =>
+          mode
+        case _ =>
+          logger.warn(s"Invalid mode: $mode. Valid options are 'sync' or 'async'. Defaulting to async mode.")
+          "async"
+      }
     }
   }
 

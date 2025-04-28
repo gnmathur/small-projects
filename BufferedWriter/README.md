@@ -11,17 +11,27 @@
   `connectionPool.getConnection()`, and the Future will fail gracefully because of a Hikari exception
 * Each Future in the BufferedWriter now needs a connection to the PG. That's why we need a connection pool. Sizing of
   the pool and connection wait timeout now become important. Note that without a connection pool, we will have a
-  situation where each connection with either need to use the same connection - defeting the purpose of the
+  situation where each connection with either need to use the same connection - defeating the purpose of the
   BufferedWriter and making it serial, or each Future will need to have its own connection, potentially leading to 100's
-  to concurreny connections to PG - which is not a good way to do things in the real world.
-* A BufferedWriter with a ListBuffer has no backpressure and can easily get swamped and made useless but a runaway
+  to concurrent connections to PG - which is not a good way to do things in the real world.
+* BufferedWriter with a `ListBuffer` has no backpressure and can easily get swamped and made useless but a runaway
   client
 
 * There are two clients in the package now 
-    ** legacy - older clients that use a simple Future based multi-thread worker threads, where each is producing
-    independent of the other, at a rate that's only limited by a random 1 - 10ms delay between each insert call
-    ** ratedefined - this uses a nice producer and consumer model. This allows us to control the overall rate of
-    insertions! It also has a lot of knobs to control the traffic pattern and the queue and batch sizes etc.
+  * `legacy` - older clients that use a simple Future based multi-thread worker threads, where each is producing
+      independent of the other, at a rate that's only limited by a random 1 - 10ms delay between each insert call
+  * `ratedefined` - this uses a nice producer and consumer model. This allows us to control the overall rate of
+      insertions! It also has a lot of knobs to control the traffic pattern and the queue and batch sizes etc.
+
+* To handle the rate of insertion, you might want to increase the Hikari Pool size. For example, for 10K inserts/sec,
+  the pool size that works the sys76 PG is 10. We might also want to increase the flush size, so that we end up using
+  fewer connections to PG.
+
+* `ProofOfHelpfulness` made me realize why the logic to collect all the Futures in a sequence and wait for the combined
+future to complete was not working! Its because of the lack of fallback flush in the BufferedWriter, where some entries
+were left hanging in the buffer and not flushed because the insert count was not the "right" multiple of the flush
+size. That mean some `Promise` were never completed. We need an ability to flush the buffer on shutdown, which is what 
+I added eventually
 
 ## Questions?
 

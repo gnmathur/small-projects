@@ -1,6 +1,6 @@
 package tester.legacy
 
-import lib.BufferedWriter
+import lib.AsyncBufferedWriter
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.time.LocalDateTime
@@ -54,7 +54,7 @@ object BufferedWriterScaleTester2 extends App { // Renamed to avoid conflicts if
    *         The Future fails if the worker encounters a critical setup error OR
    *         if Future.sequence fails (meaning at least one insertFuture failed).
    */
-  def runTestWorker(threadId: Int, startId: Int, bufferedWriter: BufferedWriter): Future[Int] = {
+  def runTestWorker(threadId: Int, startId: Int, bufferedWriter: AsyncBufferedWriter): Future[Int] = {
 
     // Phase 1: Initiate all inserts and collect their Futures
     val initiationFuture: Future[(List[Future[Any]], Int, Long)] = Future {
@@ -150,7 +150,7 @@ object BufferedWriterScaleTester2 extends App { // Renamed to avoid conflicts if
     // Ensure BufferedWriter is thread-safe OR create one per thread if needed.
     // Assuming a single shared instance is intended and thread-safe:
     val bufferedWriter = try {
-      new BufferedWriter(500, "192.168.52.194", 5432, "scaling-tests", "postgres", "postgres")
+      new AsyncBufferedWriter(500, "192.168.52.194", 5432, "scaling-tests", "postgres", "postgres")
     } catch {
       case e: Exception =>
         logger.error(s"Failed to initialize BufferedWriter: ${e.getMessage}", e)

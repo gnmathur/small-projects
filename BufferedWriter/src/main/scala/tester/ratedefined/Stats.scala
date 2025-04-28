@@ -7,4 +7,7 @@ class Stats {
   @volatile var batchesProcessed: Int = 0
   @volatile var futuresSucceeded: Int = 0
   @volatile var futuresFailed: Int = 0
+  // Sync-only
+  @volatile var rowsWritten: Int = 0
+  @volatile var errorCount: Int = 0
 }

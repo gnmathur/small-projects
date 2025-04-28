@@ -16,12 +16,12 @@ import io.prometheus.client.hotspot.DefaultExports
 // HikariCP imports
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
-class BufferedWriter(batchSize: Int,
-                     pgHost: String,
-                     pgPort: Int,
-                     pgDb: String,
-                     pgUser: String,
-                     pgPassword: String) {
+class AsyncBufferedWriter(batchSize: Int,
+                          pgHost: String,
+                          pgPort: Int,
+                          pgDb: String,
+                          pgUser: String,
+                          pgPassword: String) {
   private val logger: Logger = LoggerFactory.getLogger(this.getClass)
 
   // Initialize Prometheus metrics
@@ -97,11 +97,12 @@ class BufferedWriter(batchSize: Int,
     Class.forName("org.postgresql.Driver")
 
     val config = new HikariConfig()
+    config.setRegisterMbeans(true)
     config.setJdbcUrl(jdbcURL)
     config.setUsername(pgUser)
     config.setPassword(pgPassword)
-    config.setMaximumPoolSize(6) // Set fixed pool size
-    config.setMinimumIdle(5)      // Minimum number of idle connections
+    config.setMaximumPoolSize(10) // Set fixed pool size
+    config.setMinimumIdle(3)      // Minimum number of idle connections
     config.setIdleTimeout(30000)  // How long a connection can remain idle before being removed
     config.setConnectionTimeout(10000) // Maximum time to wait for a connection from the pool
     config.setPoolName("BufferedWriterConnectionPool")
@@ -114,6 +115,35 @@ class BufferedWriter(batchSize: Int,
   private val writePendingQueue = new ListBuffer[(String, Seq[Seq[Any]], Promise[InsertResult], Long)]()
 
   def shutdown(): Unit = {
+    // Process any remaining writes in the queue before shutting down
+    this.synchronized {
+      logger.info(s"Processing ${writePendingQueue.size} remaining rows in the queue before shutdown")
+
+      if (writePendingQueue.nonEmpty) {
+        try {
+          val rowsWritten = writeRows(writePendingQueue)
+          logger.info(s"Processed $rowsWritten remaining rows during shutdown")
+
+          // Complete all promises with success
+          writePendingQueue.foreach {
+            case (_, _, p, _) => p.success(InsertResult(LocalDateTime.now()))
+          }
+          // Reset gauges after clearing the queue
+          pendingRowsGauge.set(0)
+          queueLengthGauge.set(0)
+
+        } catch {
+          case ex: Exception =>
+            logger.error(s"Error processing remaining writes during shutdown: ${ex.getMessage}", ex)
+            // Complete all promises with failure
+            writePendingQueue.foreach { case (_, _, p, _) => p.failure(ex) }
+        } finally {
+          // Clear the queue after processing
+          writePendingQueue.clear()
+        }
+      }
+    }
+
     es.shutdown()
 
     try {
