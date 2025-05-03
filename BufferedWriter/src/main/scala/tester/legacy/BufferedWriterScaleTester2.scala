@@ -150,7 +150,7 @@ object BufferedWriterScaleTester2 extends App { // Renamed to avoid conflicts if
     // Ensure BufferedWriter is thread-safe OR create one per thread if needed.
     // Assuming a single shared instance is intended and thread-safe:
     val bufferedWriter = try {
-      new AsyncBufferedWriter(500, "192.168.52.194", 5432, "scaling-tests", "postgres", "postgres")
+      new AsyncBufferedWriter(500, 5000, "192.168.52.194", 5432, "scaling-tests", "postgres", "postgres")
     } catch {
       case e: Exception =>
         logger.error(s"Failed to initialize BufferedWriter: ${e.getMessage}", e)

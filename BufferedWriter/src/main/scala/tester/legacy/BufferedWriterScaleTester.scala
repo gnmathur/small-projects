@@ -131,7 +131,7 @@ object BufferedWriterScaleTester extends App {
     println(s"Starting test with $THREAD_COUNT threads, each inserting $ROWS_PER_THREAD rows")
 
     // Create an instance of BufferedWriterPromise
-    val bufferedWriter = new AsyncBufferedWriter(2000, "192.168.52.194", 5432, "scaling-tests", "postgres", "postgres")
+    val bufferedWriter = new AsyncBufferedWriter(2000, 5000, "192.168.52.194", 5432, "scaling-tests", "postgres", "postgres")
 
     // Launch all worker threads
     val futures = (0 until THREAD_COUNT).map { threadId =>

@@ -26,6 +26,7 @@ object RateDefinedBufferedWriterTester extends App {
       // Create configuration - can be loaded from properties file or command line args
       val config = TestConfig(
         queueCapacity = DEFAULT_QUEUE_CAPACITY,
+        maxTimeInBufferedWriterQueue = DEFAULT_MAX_TIME_IN_BUFFERED_WRITER_QUEUE,
         producerRatePerSec = DEFAULT_PRODUCER_RATE_PER_SEC,
         consumerCount = DEFAULT_CONSUMER_COUNT,
         rowsPerBatch = DEFAULT_ROWS_PER_BATCH,

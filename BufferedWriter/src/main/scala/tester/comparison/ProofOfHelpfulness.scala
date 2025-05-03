@@ -17,6 +17,7 @@ object TestDbConfig {
   val host = "192.168.52.194"
   val port = 5432
   val dbName = "postgres"
+  val bufferedWriterFlushTimeout = 5000L
 
   // Ensure the JDBC driver is loaded
   Class.forName("org.postgresql.Driver")
@@ -268,6 +269,7 @@ object BufferedWriterProofOfHelpfulnessPG {
     // Instantiate *your* BufferedWriter class
     val writer = new AsyncBufferedWriter(
       batchSize = bufferBatchSize,
+      flushTimeoutMillis = TestDbConfig.bufferedWriterFlushTimeout,
       pgHost = TestDbConfig.host,
       pgPort = TestDbConfig.port,
       pgDb = TestDbConfig.dbName,

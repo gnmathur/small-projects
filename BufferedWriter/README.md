@@ -67,3 +67,12 @@ Multiple main classes detected. Select one to run:
 Enter number:
 
 ```
+This is an async buffered writer. It has an ever expanding queue. I want to add ability to this code to add a "discard policy". Which mean,
+
+1. add a max size to the queue
+
+2. block caller when the queue is full if discard policy is BlockCaller
+
+3. drop newest inserted elements from queue if full if dsicard policy is drop newest
+
+3. drop oldest inserted elements from queue if full if dsicard policy is drop oldest 

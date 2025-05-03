@@ -23,6 +23,7 @@ class AsyncDriver(config: TestConfig) {
 
   private val bufferedWriter = new AsyncBufferedWriter(
     config.batchSizeForBufferedWriter,
+    config.maxTimeInBufferedWriterQueue,
     config.dbHost,
     config.dbPort,
     config.dbName,

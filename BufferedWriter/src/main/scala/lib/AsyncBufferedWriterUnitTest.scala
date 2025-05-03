@@ -27,7 +27,7 @@ object AsyncBufferedWriterUnitTest extends App {
     )
 
     // Create an instance of BufferedWriterPromise
-    val bufferedWriter = new AsyncBufferedWriter(5, "192.168.52.194", 5432, "postgres", "postgres", "postgres")
+    val bufferedWriter = new AsyncBufferedWriter(5, 1000, "192.168.52.194", 5432, "postgres", "postgres", "postgres")
 
     // Insert the rows and handle the futures
     val f1 = bufferedWriter.insert(insertSql, rowsT0)
